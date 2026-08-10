@@ -5,3 +5,8 @@ logs/
 zomato/logs/
 zomato/target/
 zomato/dbt_packages/
+profiles.yml
+zomato/profiles.yml
+.env
+airflow/.env
+airflow/logs/
