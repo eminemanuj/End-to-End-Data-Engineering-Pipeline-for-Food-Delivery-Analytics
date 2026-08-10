@@ -1,0 +1,7 @@
+Data/
+*.csv
+cred
+logs/
+zomato/logs/
+zomato/target/
+zomato/dbt_packages/
