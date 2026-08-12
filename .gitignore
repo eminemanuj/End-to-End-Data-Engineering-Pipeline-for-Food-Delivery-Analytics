@@ -9,4 +9,9 @@ profiles.yml
 zomato/profiles.yml
 .env
 airflow/.env
+ai/.env
 airflow/logs/
+airflow/dags/__pycache__/
+*.p8
+*.pub
+*.parquet
