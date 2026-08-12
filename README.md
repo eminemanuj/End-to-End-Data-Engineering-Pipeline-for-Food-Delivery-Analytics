@@ -35,6 +35,10 @@ S3 (raw CSVs) → Snowflake RAW → dbt STAGING → dbt MARTS → Airflow (orche
 2. **RAG chat over reviews** — embeds a sample of reviews with Cohere, retrieves the most relevant reviews by cosine similarity for a user's question, and generates a grounded answer with Groq.
 3. **Text-to-SQL** — turns a natural-language question into a single `SELECT` query against the marts layer, with a keyword-based safety guard before execution.
 
+## Data source
+
+The dataset is a Zomato-style food delivery dataset (restaurants, users, menu items, orders, order items, and reviews): [source dataset](https://drive.google.com/drive/folders/1FEnGWMHhHzzTUCZOw1-YnH2v3DMuM-rs).
+
 ## Project structure
 
 ```
