@@ -38,6 +38,7 @@ S3 (raw CSVs) → Snowflake RAW → dbt STAGING → dbt MARTS → Airflow (orche
 ## Project structure
 
 ```
+snowflake/        Snowflake setup SQL (warehouse, schemas, stage, tables, grants)
 zomato/           dbt project (staging + marts models, tests, macros)
 airflow/          Airflow DAG, Docker Compose setup
 ai/               LLM enrichment, RAG chat, and text-to-SQL Streamlit apps
@@ -46,8 +47,8 @@ ai/               LLM enrichment, RAG chat, and text-to-SQL Streamlit apps
 ## Setup
 
 1. Create an S3 bucket and upload the source CSVs under `raw/<table>/`.
-2. Create a Snowflake account; run the setup SQL (warehouse, database, schemas, `DBT_ROLE`, external stage, RAW tables) — see `zomato/` for the dbt project and grants needed.
-3. Set up key-pair authentication for your Snowflake user (see [Snowflake's key-pair auth docs](https://docs.snowflake.com/en/user-guide/key-pair-auth)).
+2. Create a Snowflake account, then run `snowflake/setup.sql` in a Snowsight worksheet (fill in your bucket name, IAM credentials, and RSA public key first — it's a template, not meant to run as-is).
+3. Set up key-pair authentication for your Snowflake user (see [Snowflake's key-pair auth docs](https://docs.snowflake.com/en/user-guide/key-pair-auth)) — `setup.sql` includes the `ALTER USER ... SET RSA_PUBLIC_KEY` step.
 4. Copy `airflow/example.env` to `airflow/.env` and fill in your Snowflake account, username, private key path, and Groq API key.
 5. `cd airflow && docker-compose up -d` — Airflow UI at `http://localhost:8080`.
 6. For the Streamlit apps, create `ai/.env` with the same Snowflake credentials plus `GROQ_API_KEY` and `COHERE_API_KEY`, then `streamlit run ai/rag_chat.py` or `streamlit run ai/text_to_sql.py`.
@@ -57,3 +58,12 @@ ai/               LLM enrichment, RAG chat, and text-to-SQL Streamlit apps
 - Fact tables (`fct_orders`, `fact_order_items`) are built as dbt **incremental models** to avoid full rebuilds on a 10M+ row table.
 - The AI enrichment step writes to Snowflake idempotently (only unenriched reviews are processed on each run), so it's safe to run repeatedly via Airflow's daily schedule.
 - Snowflake authentication uses key-pair auth throughout rather than passwords, in line with Snowflake's deprecation of password-only sign-in.
+
+## Challenges along the way
+
+A few real issues hit and resolved during the build, worth noting since they're common in production data engineering:
+
+- **IAM trust policy debugging** — an early attempt at a keyless S3↔Snowflake storage integration (via `AssumeRole`) kept failing despite a byte-verified-correct trust policy; switched to direct IAM user credentials on the stage instead, which is simpler to reason about for a single-account setup.
+- **dbt schema misconfiguration** — mart models were silently landing in the `STAGING` schema instead of `MARTS` due to a missing `+schema:` config in `dbt_project.yml`. Fixed and verified against Snowflake's `SHOW TABLES`/`SHOW VIEWS`.
+- **Account lockout recovery** — an overly broad Snowflake network policy locked out all access (UI included) after a dynamic IP changed. Recovered by provisioning a fresh account and switching to key-pair authentication, which avoids the network-policy dependency entirely.
+- **Cross-environment config** — running the same Python scripts both locally and inside a Docker container required separating local (`ai/.env`) and container (`airflow/.env`) configs, since file paths and environment variable resolution differ between the two.
